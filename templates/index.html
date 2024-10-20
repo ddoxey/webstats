@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flask WebSocket Example with jQuery and Charts</title>
+    <link rel="icon" href="/favicon.ico" type="image/x-icon">
+    <script src="/js/jquery-3.7.1.min.js"></script>
+    <script src="/js/chart.js"></script>
+    <script src="/js/socket.io.js" crossorigin="anonymous"></script>
+    <style>
+        body {
+            padding: 20px;
+            background-color: #f8f9fa;
+        }
+        #charts-container {
+            width: 100%;  /* Full width container */
+            display: flex;
+            flex-direction: column;
+            align-items: left;
+            gap: 20px;  /* Add spacing between charts */
+        }
+        .chart-container {
+            width: 95%;  /* Each chart takes up 95% of the container's width */
+            position: relative;
+        }
+        .chart-label {
+            text-align: left;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        h2 {
+            text-align: center;
+        }
+        .clearfix::after {
+            content: "";
+            display: block;
+            clear: both;
+        }
+    </style>
+</head>
+<body>
+    <h2>Process Monitoring (CPU & Memory Usage)</h2>
+    <div class="clearfix" id="charts-container"></div>
+
+    <script>
+        const charts = {};  // Store Chart.js instances for each process
+        const maxDataPoints = 1000;  // Maximum data points to retain
+        const reloadInterval = 5000;
+        const startedAt = Date.now();  // Store page load time
+
+        function getRelativeTime() {
+            const now = Date.now();
+            return ((now - startedAt) / 1000).toFixed(1);  // Time in seconds
+        }
+
+        // Function to create a new chart for a command
+        function createChart(command) {
+            const canvasId = `chart-${command.replace(/\s+/g, '-')}`;  // Sanitize ID
+            const label = $('<div>', { class: 'chart-label', text: `Process: ${command}` });
+            const chartDiv = $('<div>', { class: 'chart-container' });
+            const canvas = $('<canvas>', { id: canvasId });
+            chartDiv.append(canvas);
+            $('#charts-container').append(label);
+            $('#charts-container').append(chartDiv);
+
+            const ctx = canvas[0].getContext('2d');  // Access raw DOM element from jQuery object
+
+            console.log(`Created canvas: ${canvasId} => ${ctx}`);
+
+            charts[command] = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [
+                        {
+                            label: 'CPU %',
+                            data: [],
+                            borderColor: 'rgba(255, 99, 132, 1)',
+                            backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                            fill: true,
+                            tension: 0.1,
+                        },
+                        {
+                            label: 'Memory %',
+                            data: [],
+                            borderColor: 'rgba(54, 162, 235, 1)',
+                            backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                            fill: true,
+                            tension: 0.1,
+                        },
+                    ],
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            type: 'linear',
+                            title: { display: true, text: 'Time (s)' },
+                        },
+                        y: {
+                            beginAtZero: true,
+                            min: 0,
+                            max: 100,
+                            title: { display: true, text: '%' },
+                        },
+                    },
+                },
+            });
+        }
+
+        // Update charts with new data points
+        function updateCharts(processes) {
+            processes.forEach(process => {
+                const command = process.command;
+                const cpuUsage = parseFloat(process.cpu) || 0.0;
+                const memUsage = parseFloat(process.mem) || 0.0;
+
+                console.log(`Process: ${command}, CPU: ${cpuUsage}, MEM: ${memUsage}`);
+
+                if (!charts[command]) {
+                    console.log(`Creating chart for: ${command}`);
+                    createChart(command);  // Create chart if it doesn't exist
+                }
+
+                const chart = charts[command];
+                const now = getRelativeTime();
+
+                // Add new data point to CPU and Memory datasets
+                chart.data.labels.push(now);
+                chart.data.datasets[0].data.push(cpuUsage);
+                chart.data.datasets[1].data.push(memUsage);
+
+                // Keep only the last 10 data points
+                if (chart.data.labels.length > maxDataPoints) {
+                    chart.data.labels.shift();
+                    chart.data.datasets[0].data.shift();
+                    chart.data.datasets[1].data.shift();
+                }
+
+                console.log(`Updating chart: ${command}`);
+                chart.update();
+                console.log(`Updated chart: ${command}`);
+            });
+        }
+
+        $(document).ready(function () {
+            const socket = io();
+
+            // Handle WebSocket connection
+            socket.on('connect', function () {
+                console.log('Connected to WebSocket server');
+            });
+
+            // Listen for JSON response from the server
+            socket.on('stats_response', function (data) {
+                if (typeof data === 'object' && data !== null) {
+                    updateCharts(data);
+                } else {
+                    console.error('Invalid data received:', data);
+                }
+            });
+
+                socket.emit('stats_request', {});  // Send an empty object as payload
+            // Emit stats_request every 10 seconds
+            setInterval(function () {
+                console.log('Requesting stats...');
+                socket.emit('stats_request', {});  // Send an empty object as payload
+            }, reloadInterval);
+        });
+    </script>
+</body>
+</html>
+
