@@ -1,8 +1,8 @@
 import os
+import json
 from flask import Flask, render_template, send_from_directory
 from flask_socketio import SocketIO, emit
-import json
-from data import get_top_cpu_processes
+from data import get_processes
 
 app = Flask(__name__)
 socketio = SocketIO(app)
@@ -30,9 +30,12 @@ def serve_js(filename):
 
 # WebSocket handler for JSON responses
 @socketio.on('stats_request')
-def handle_stats_request(data):
-    processes = get_top_cpu_processes()
-    emit('stats_response', processes)
+def handle_stats_request(config):
+    if isinstance(config, dict) \
+      and 'watch_list' in config \
+      and len(config['watch_list']) > 0:
+        processes = get_processes(config['watch_list'])
+        emit('stats_response', processes)
 
 if __name__ == '__main__':
     socketio.run(app, host='0.0.0.0', port=5150)

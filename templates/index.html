@@ -5,23 +5,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Flask WebSocket Example with jQuery and Charts</title>
     <link rel="icon" href="/favicon.ico" type="image/x-icon">
-    <script src="/js/jquery-3.7.1.min.js"></script>
-    <script src="/js/chart.js"></script>
-    <script src="/js/socket.io.js" crossorigin="anonymous"></script>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.socket.io/4.6.1/socket.io.min.js" integrity="sha384-KA7m0DwgQGmeRC6Xre3hJO+ZxpanOauVh4Czdqbg8lDKJ3bZZYVYmP+y4F31x40L" crossorigin="anonymous"></script>
     <style>
         body {
             padding: 20px;
             background-color: #f8f9fa;
         }
         #charts-container {
-            width: 100%;  /* Full width container */
+            width: 100%;
             display: flex;
             flex-direction: column;
             align-items: left;
-            gap: 20px;  /* Add spacing between charts */
+            gap: 20px;
         }
         .chart-container {
-            width: 95%;  /* Each chart takes up 95% of the container's width */
+            width: 95%;
             position: relative;
         }
         .chart-label {
@@ -37,17 +37,99 @@
             display: block;
             clear: both;
         }
+        #config-tab {
+            position: fixed;
+            top: 10%;
+            right: 10px;
+            transform: translateY(-50%) rotate(-90deg);
+            transform-origin: right center;
+            background-color: #007bff;
+            color: white;
+            padding: 10px 20px;
+            cursor: pointer;
+            font-weight: bold;
+            border-radius: 5px 5px 0 0;
+            white-space: nowrap;
+            box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2);
+        }
+        #config-panel {
+            position: fixed;
+            top: 0;
+            right: -350px;  /* Hidden off-screen */
+            width: 300px;
+            height: 100vh;
+            background-color: #f4f4f4;
+            box-shadow: -2px 0 5px rgba(0, 0, 0, 0.1);
+            transition: right 0.3s;
+            padding: 20px;
+        }
+        #config-panel h3 {
+            margin-top: 0;
+        }
+        .process-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .process-item input[type="checkbox"] {
+            margin-right: 10px;
+        }
     </style>
 </head>
 <body>
     <h2>Process Monitoring (CPU & Memory Usage)</h2>
     <div class="clearfix" id="charts-container"></div>
-
+    <div id="config-panel">
+        <h3>Monitored Processes</h3>
+        <div id="process-list"></div>
+        <div id="config-tab">Settings</div>
+    </div>
     <script>
         const charts = {};  // Store Chart.js instances for each process
         const maxDataPoints = 1000;  // Maximum data points to retain
         const reloadInterval = 5000;
         const startedAt = Date.now();  // Store page load time
+
+        let monitoredProcesses = [
+            { name: 'Dropbox', enabled: true },
+            { name: 'Google Chrome', enabled: true },
+            { name: 'Messages', enabled: true },
+            { name: 'Signal', enabled: true },
+            { name: 'Spotlight', enabled: true },
+            { name: 'Stickies', enabled: true },
+            { name: 'Termnal', enabled: true },
+            { name: 'firefox', enabled: true }
+        ];
+
+        function renderProcessList() {
+            const processList = $('#process-list');
+            processList.empty();  // Clear existing content
+
+            monitoredProcesses.forEach((process, index) => {
+                const processItem = $(`
+                    <div class="process-item">
+                        <input type="checkbox" id="process-${index}" ${process.enabled ? 'checked' : ''}>
+                        <label for="process-${index}">${process.name}</label>
+                    </div>
+                `);
+
+                // Add event listener to checkbox
+                processItem.find('input').change(function () {
+                    monitoredProcesses[index].enabled = this.checked;
+                    console.log(monitoredProcesses);  // Debugging log
+                });
+
+                processList.append(processItem);
+            });
+        }
+
+        function emitStatsRequest(socket) {
+            console.log('Requesting stats...');
+            const enabledProcesses = monitoredProcesses
+                .filter(proc => proc.enabled)
+                .map(proc => proc.name);
+            socket.emit('stats_request', { watch_list: enabledProcesses });
+        }
 
         function getRelativeTime() {
             const now = Date.now();
@@ -162,14 +244,21 @@
                 }
             });
 
-                socket.emit('stats_request', {});  // Send an empty object as payload
-            // Emit stats_request every 10 seconds
-            setInterval(function () {
-                console.log('Requesting stats...');
-                socket.emit('stats_request', {});  // Send an empty object as payload
-            }, reloadInterval);
+            renderProcessList();
+
+            // Toggle the configuration panel when the tab is clicked
+            $('#config-tab').click(() => {
+                const panel = $('#config-panel');
+                if (panel.css('right') === '0px') {
+                    panel.css('right', '-350px');  // Hide the panel
+                } else {
+                    panel.css('right', '0');  // Show the panel
+                }
+            });
+
+            emitStatsRequest(socket);
+            setInterval(function () { emitStatsRequest(socket); }, reloadInterval);
         });
     </script>
 </body>
 </html>
-
