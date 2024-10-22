@@ -37,10 +37,15 @@
             display: block;
             clear: both;
         }
+        #config-tab-arrow {
+            margin-right: 15px;
+            font-weight: bold;
+            font-size: 25px;
+        }
         #config-tab {
-            position: fixed;
+            position: absolute;
             top: 10%;
-            right: 10px;
+            right: 365px;
             transform: translateY(-50%) rotate(-90deg);
             transform-origin: right center;
             background-color: #007bff;
@@ -62,6 +67,7 @@
             box-shadow: -2px 0 5px rgba(0, 0, 0, 0.1);
             transition: right 0.3s;
             padding: 20px;
+            border-left: 2px solid #007bff;
         }
         #config-panel h3 {
             margin-top: 0;
@@ -82,7 +88,7 @@
     <div id="config-panel">
         <h3>Monitored Processes</h3>
         <div id="process-list"></div>
-        <div id="config-tab">Settings</div>
+        <div id="config-tab"><span id="config-tab-arrow">&uarr;</span>Settings</div>
     </div>
     <script>
         const charts = {};  // Store Chart.js instances for each process
@@ -251,8 +257,10 @@
                 const panel = $('#config-panel');
                 if (panel.css('right') === '0px') {
                     panel.css('right', '-350px');  // Hide the panel
+                    $('#config-tab-arrow').html('&uarr;');
                 } else {
                     panel.css('right', '0');  // Show the panel
+                    $('#config-tab-arrow').html('&darr;');
                 }
             });
 
