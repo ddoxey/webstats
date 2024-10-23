@@ -96,16 +96,7 @@
         const reloadInterval = 5000;
         const startedAt = Date.now();  // Store page load time
 
-        let monitoredProcesses = [
-            { name: 'Dropbox', enabled: true },
-            { name: 'Google Chrome', enabled: true },
-            { name: 'Messages', enabled: true },
-            { name: 'Signal', enabled: true },
-            { name: 'Spotlight', enabled: true },
-            { name: 'Stickies', enabled: true },
-            { name: 'Termnal', enabled: true },
-            { name: 'firefox', enabled: true }
-        ];
+        let monitoredProcesses = {{ monitoredProcesses | tojson }}; 
 
         function renderProcessList() {
             const processList = $('#process-list');

@@ -10,7 +10,18 @@ socketio = SocketIO(app)
 # Default route to serve HTML content
 @app.route('/')
 def index():
-    return render_template('index.html')
+
+    processes = [
+        { 'name': 'Dropbox', 'enabled': True },
+        { 'name': 'Google Chrome', 'enabled': True },
+        { 'name': 'Messages', 'enabled': True },
+        { 'name': 'Signal', 'enabled': True },
+        { 'name': 'Spotlight', 'enabled': True },
+        { 'name': 'Stickies', 'enabled': True },
+        { 'name': 'Termnal', 'enabled': True },
+        { 'name': 'firefox', 'enabled': True },
+    ]
+    return render_template('index.html', monitoredProcesses=processes)
 
 # Route to serve favicon.ico
 @app.route('/favicon.ico')
