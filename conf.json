@@ -1,0 +1,10 @@
+[
+    {"name": "Dropbox", "enabled": true},
+    {"name": "Google Chrome", "enabled": true},
+    {"name": "Messages", "enabled": true},
+    {"name": "Signal", "enabled": true},
+    {"name": "Spotlight", "enabled": true},
+    {"name": "Stickies", "enabled": true},
+    {"name": "Termnal", "enabled": true},
+    {"name": "firefox", "enabled": true}
+]
