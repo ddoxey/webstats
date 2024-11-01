@@ -1,6 +1,7 @@
 body {
     padding: 20px;
     background-color: #f8f9fa;
+    font-family: Helvetica, Arial, sans-serif;
 }
 #charts-container {
     width: 100%;
@@ -17,6 +18,7 @@ body {
     text-align: left;
     font-weight: bold;
     margin-bottom: 5px;
+    display: inline-block;
 }
 h2 {
     text-align: center;
@@ -69,3 +71,33 @@ h2 {
 .process-item input[type="checkbox"] {
     margin-right: 10px;
 }
+.chart-header-container {
+    display: flex;
+    align-items: center;
+}
+.chart-header-container span {
+    margin: 8px 8px 8px 1px;
+}
+.expander {
+    font-size: 14px;
+    color: blue;
+    margin-bottom: -4px;
+    cursor: pointer;
+}
+.bullet-red {
+    font-size: 26px;
+    color: red;
+}
+.bullet-yellow {
+    font-size: 26px;
+    color: khaki;
+}
+.bullet-green {
+    font-size: 26px;
+    color: green;
+}
+.title-text {
+    font-size: 16px;
+    color: black;
+}
+

@@ -19,16 +19,25 @@
         <div id="config-tab"><span id="config-tab-arrow">&uarr;</span>Settings</div>
     </div>
     <script>
-        const charts = {};  // Store Chart.js instances for each process
+        const charts = {};  // Chart.js instances
         const maxDataPoints = 1000;  // Maximum data points to retain
         const reloadInterval = 5000;
-        const startedAt = Date.now();  // Store page load time
+        const startedAt = Date.now();
 
-        let monitoredProcesses = {{ monitoredProcesses | tojson }}; 
+        let monitoredProcesses = {{ monitoredProcesses | tojson }};
+
+        function makeCanvasId(command) {
+            return `chart-${command.replace(/\s+/g, '-')}`;
+        }
+
+        function getRelativeTime() {
+            const now = Date.now();
+            return ((now - startedAt) / 1000).toFixed(1);  // Time in seconds
+        }
 
         function renderProcessList() {
             const processList = $('#process-list');
-            processList.empty();  // Clear existing content
+            processList.empty();
 
             monitoredProcesses.forEach((process, index) => {
                 const processItem = $(`
@@ -38,10 +47,8 @@
                     </div>
                 `);
 
-                // Add event listener to checkbox
                 processItem.find('input').change(function () {
                     monitoredProcesses[index].enabled = this.checked;
-                    console.log(monitoredProcesses);  // Debugging log
                 });
 
                 processList.append(processItem);
@@ -50,25 +57,61 @@
 
         function emitStatsRequest(socket) {
             console.log('Requesting stats...');
-            const enabledProcesses = monitoredProcesses
-                .filter(proc => proc.enabled)
-                .map(proc => proc.name);
+            const enabledProcesses = monitoredProcesses.filter(proc => proc.enabled).map(proc => proc.name);
             socket.emit('stats_request', { watch_list: enabledProcesses });
+            const now = getRelativeTime();
+            monitoredProcesses.forEach((process) => {
+                updateChartMeta(now, process.name);
+            });
         }
 
-        function getRelativeTime() {
-            const now = Date.now();
-            return ((now - startedAt) / 1000).toFixed(1);  // Time in seconds
+        // Update the status, cpu, and mem values on the chart header
+        function setChartMeta(now, command, cpu, mem) {
+            const canvasId = makeCanvasId(command);
+            const bulletId = `${canvasId}-bullet`;
+            const cpuId = `${canvasId}-label-cpu`;
+            const memId = `${canvasId}-label-mem`;
+            $(`#${bulletId}`).attr({ class: 'bullet-green' }).data({ last: now });
+            $(`#${cpuId}`).text(`CPU: ${cpu.toFixed(2)}%`);
+            $(`#${memId}`).text(`MEM: ${mem.toFixed(2)}%`);
+        }
+
+        // Update the status and possibly clear cpu, and mem values
+        function updateChartMeta(now, command) {
+            const canvasId = makeCanvasId(command);
+            const bulletId = `${canvasId}-bullet`;
+            const time_delta = now - $(`#${bulletId}`).data('last');
+            if (isNaN(time_delta) || time_delta == 0) return;
+            const reloadInSeconds = reloadInterval / 1000;
+            const intervals = (time_delta / reloadInSeconds).toFixed(2);
+            const statusClass = intervals > 3 ? 'bullet-red'
+                              : intervals > 1 ? 'bullet-yellow'
+                              :                 'bullet-green';
+            $(`#${bulletId}`).attr({class: statusClass});
+            if (statusClass == 'bullet-red') {
+                const cpuId = `${canvasId}-label-cpu`;
+                const memId = `${canvasId}-label-mem`;
+                $(`#${cpuId}`).html("");
+                $(`#${memId}`).html("");
+            }
         }
 
         // Function to create a new chart for a command
-        function createChart(command) {
-            const canvasId = `chart-${command.replace(/\s+/g, '-')}`;  // Sanitize ID
-            const label = $('<div>', { class: 'chart-label', text: `Process: ${command}` });
-            const chartDiv = $('<div>', { class: 'chart-container' });
+        function createChart(now, command) {
+            const canvasId = makeCanvasId(command);
+            const header = $('<div>', { class: 'chart-header-container' });
+            const expander = $('<span>', { id: `${canvasId}-expand`, class: 'expander', html: '&#9660;'});
+            const bullet = $('<span>', { id: `${canvasId}-bullet`,
+                                         class: 'bullet-green',
+                                         html: '&#9679;' }).data({ last: now });
+            const title = $('<span>', { class: 'header-title', text: command });
+            const cpu = $('<span>', { id: `${canvasId}-label-cpu`, class: 'header-title' });
+            const mem = $('<span>', { id: `${canvasId}-label-mem`, class: 'header-title' });
+            $(header).append(expander).append(bullet).append(title).append(cpu).append(mem);
+            const chartDiv = $('<div>', { id: `${canvasId}-container`, class: 'chart-container' });
             const canvas = $('<canvas>', { id: canvasId });
             chartDiv.append(canvas);
-            $('#charts-container').append(label);
+            $('#charts-container').append(header);
             $('#charts-container').append(chartDiv);
 
             const ctx = canvas[0].getContext('2d');  // Access raw DOM element from jQuery object
@@ -126,33 +169,34 @@
 
                 console.log(`Process: ${command}, CPU: ${cpuUsage}, MEM: ${memUsage}`);
 
+                const now = getRelativeTime();
+
                 if (!charts[command]) {
-                    console.log(`Creating chart for: ${command}`);
-                    createChart(command);  // Create chart if it doesn't exist
+                    createChart(now, command);  // Create chart if it doesn't exist
                 }
 
                 const chart = charts[command];
-                const now = getRelativeTime();
+                setChartMeta(now, command, cpuUsage, memUsage);
 
                 // Add new data point to CPU and Memory datasets
                 chart.data.labels.push(now);
                 chart.data.datasets[0].data.push(cpuUsage);
                 chart.data.datasets[1].data.push(memUsage);
 
-                // Keep only the last 10 data points
+                // Keep limited number of data points
                 if (chart.data.labels.length > maxDataPoints) {
                     chart.data.labels.shift();
                     chart.data.datasets[0].data.shift();
                     chart.data.datasets[1].data.shift();
                 }
 
-                console.log(`Updating chart: ${command}`);
                 chart.update();
-                console.log(`Updated chart: ${command}`);
             });
         }
 
         $(document).ready(function () {
+            renderProcessList();
+
             const socket = io();
 
             // Handle WebSocket connection
@@ -169,8 +213,6 @@
                 }
             });
 
-            renderProcessList();
-
             // Toggle the configuration panel when the tab is clicked
             $('#config-tab').click(() => {
                 const panel = $('#config-panel');
@@ -178,7 +220,7 @@
                     panel.css('right', '-350px');  // Hide the panel
                     $('#config-tab-arrow').html('&uarr;');
                 } else {
-                    panel.css('right', '0');  // Show the panel
+                    panel.css('right', '0px');  // Show the panel
                     $('#config-tab-arrow').html('&darr;');
                 }
             });
