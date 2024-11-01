@@ -87,6 +87,7 @@
             const statusClass = intervals > 3 ? 'bullet-red'
                               : intervals > 1 ? 'bullet-yellow'
                               :                 'bullet-green';
+            console.log(`Status ${command}: ${intervals} => ${statusClass}`);
             $(`#${bulletId}`).attr({class: statusClass});
             if (statusClass == 'bullet-red') {
                 const cpuId = `${canvasId}-label-cpu`;
@@ -100,7 +101,16 @@
         function createChart(now, command) {
             const canvasId = makeCanvasId(command);
             const header = $('<div>', { class: 'chart-header-container' });
-            const expander = $('<span>', { id: `${canvasId}-expand`, class: 'expander', html: '&#9660;'});
+            const expander = $('<span>', { id: `${canvasId}-expand`,
+                                           class: 'expander',
+                                           html: '&#9660;'}).click(function() {
+                                                                       const containerId = `${canvasId}-container`;
+                                                                       $(`#${containerId}`).toggle();
+                                                                       const arrow = $(`#${containerId}`).is(':visible')
+                                                                                   ? '&#9660;'
+                                                                                   : '&#9654;';
+                                                                       $(this).html(arrow);
+                                                                   });
             const bullet = $('<span>', { id: `${canvasId}-bullet`,
                                          class: 'bullet-green',
                                          html: '&#9679;' }).data({ last: now });

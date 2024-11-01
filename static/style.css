@@ -74,6 +74,7 @@ h2 {
 .chart-header-container {
     display: flex;
     align-items: center;
+    margin-bottom: -30px;
 }
 .chart-header-container span {
     margin: 8px 8px 8px 1px;
