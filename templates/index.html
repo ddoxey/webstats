@@ -16,6 +16,14 @@
     <div id="config-panel">
         <h3>Monitored Processes</h3>
         <div id="process-list"></div>
+        <h3>Sort By</h3>
+        <div id="sort-options">
+            <input type="radio" name="sortPreference" value="cpu"> CPU
+            <br/>
+            <input type="radio" name="sortPreference" value="mem"> Memory
+            <br/>
+            <input type="radio" name="sortPreference" value="none" checked> None
+        </div>
         <div id="config-tab"><span id="config-tab-arrow">&uarr;</span>Settings</div>
     </div>
     <script>
@@ -52,14 +60,24 @@
                     if (!this.checked) {
                         const command = monitoredProcesses[index].name;
                         const canvasId = makeCanvasId(command);
-                        $(`#${canvasId}-container`).remove();
-                        $(`#${canvasId}-header-container`).remove();
+                        $(`#${canvasId}-process`).remove();
                         charts[command] = null;
                     }
                 });
 
                 processList.append(processItem);
             });
+        }
+
+        function sortChartLayout() {
+            const sortBy = $('input[name="sortPreference"]:checked').val();
+            console.log(`Sort by: ${sortBy}`);
+            if (sortBy == 'none') return;
+            const chartsContainer = $('#charts-container');
+            let chartContainers = chartsContainer.children('.process-container').sort(function(a, b) {
+                return $(b).data(sortBy) - $(a).data(sortBy);
+            });
+            chartsContainer.append(chartContainers);
         }
 
         function emitStatsRequest(socket) {
@@ -78,6 +96,7 @@
             $(`#${canvasId}-bullet`).attr({ class: 'bullet-green' }).data({ last: now });
             $(`#${canvasId}-label-cpu`).text(`CPU: ${cpu.toFixed(2)}%`);
             $(`#${canvasId}-label-mem`).text(`MEM: ${mem.toFixed(2)}%`);
+            $(`#${canvasId}-process`).data({ cpu: cpu, mem: mem });
         }
 
         // Update the status and possibly clear cpu, and mem values
@@ -95,6 +114,7 @@
             if (statusClass == 'bullet-red') {
                 $(`#${canvasId}-label-cpu`).html("");
                 $(`#${canvasId}-label-mem`).html("");
+                $(`#${canvasId}-process`).data({ cpu: 0, mem: 0 });
             }
         }
 
@@ -123,8 +143,11 @@
             const chartDiv = $('<div>', { id: `${canvasId}-container`, class: 'chart-container' });
             const canvas = $('<canvas>', { id: canvasId });
             chartDiv.append(canvas);
-            $('#charts-container').append(header);
-            $('#charts-container').append(chartDiv);
+            const processDiv = $('<div>', { id: `${canvasId}-process`,
+                                            class: 'process-container' }).data({ cpu: 0, mem: 0 });
+            $(processDiv).append(header);
+            $(processDiv).append(chartDiv);
+            $('#charts-container').append(processDiv);
 
             const ctx = canvas[0].getContext('2d');  // Access raw DOM element from jQuery object
 
@@ -204,6 +227,8 @@
 
                 chart.update();
             });
+
+            sortChartLayout();
         }
 
         $(document).ready(function () {
