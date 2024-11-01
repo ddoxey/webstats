@@ -49,6 +49,13 @@
 
                 processItem.find('input').change(function () {
                     monitoredProcesses[index].enabled = this.checked;
+                    if (!this.checked) {
+                        const command = monitoredProcesses[index].name;
+                        const canvasId = makeCanvasId(command);
+                        $(`#${canvasId}-container`).remove();
+                        $(`#${canvasId}-header-container`).remove();
+                        charts[command] = null;
+                    }
                 });
 
                 processList.append(processItem);
@@ -68,19 +75,15 @@
         // Update the status, cpu, and mem values on the chart header
         function setChartMeta(now, command, cpu, mem) {
             const canvasId = makeCanvasId(command);
-            const bulletId = `${canvasId}-bullet`;
-            const cpuId = `${canvasId}-label-cpu`;
-            const memId = `${canvasId}-label-mem`;
-            $(`#${bulletId}`).attr({ class: 'bullet-green' }).data({ last: now });
-            $(`#${cpuId}`).text(`CPU: ${cpu.toFixed(2)}%`);
-            $(`#${memId}`).text(`MEM: ${mem.toFixed(2)}%`);
+            $(`#${canvasId}-bullet`).attr({ class: 'bullet-green' }).data({ last: now });
+            $(`#${canvasId}-label-cpu`).text(`CPU: ${cpu.toFixed(2)}%`);
+            $(`#${canvasId}-label-mem`).text(`MEM: ${mem.toFixed(2)}%`);
         }
 
         // Update the status and possibly clear cpu, and mem values
         function updateChartMeta(now, command) {
             const canvasId = makeCanvasId(command);
-            const bulletId = `${canvasId}-bullet`;
-            const time_delta = now - $(`#${bulletId}`).data('last');
+            const time_delta = now - $(`#${canvasId}-bullet`).data('last');
             if (isNaN(time_delta) || time_delta == 0) return;
             const reloadInSeconds = reloadInterval / 1000;
             const intervals = (time_delta / reloadInSeconds).toFixed(2);
@@ -88,19 +91,18 @@
                               : intervals > 1 ? 'bullet-yellow'
                               :                 'bullet-green';
             console.log(`Status ${command}: ${intervals} => ${statusClass}`);
-            $(`#${bulletId}`).attr({class: statusClass});
+            $(`#${canvasId}-bullet`).attr({class: statusClass});
             if (statusClass == 'bullet-red') {
-                const cpuId = `${canvasId}-label-cpu`;
-                const memId = `${canvasId}-label-mem`;
-                $(`#${cpuId}`).html("");
-                $(`#${memId}`).html("");
+                $(`#${canvasId}-label-cpu`).html("");
+                $(`#${canvasId}-label-mem`).html("");
             }
         }
 
         // Function to create a new chart for a command
         function createChart(now, command) {
             const canvasId = makeCanvasId(command);
-            const header = $('<div>', { class: 'chart-header-container' });
+            const header = $('<div>', { class: 'chart-header-container',
+                                        id: `${canvasId}-header-container` });
             const expander = $('<span>', { id: `${canvasId}-expand`,
                                            class: 'expander',
                                            html: '&#9660;'}).click(function() {
