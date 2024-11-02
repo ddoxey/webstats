@@ -1,5 +1,6 @@
+engineio
 flask
 flask_socketio
-json
+gevent-websocket
 psutil
-subprocess
+socketio
